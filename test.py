@@ -29,42 +29,60 @@ class LineDraw:
     def __init__(self, ctx:ArcadeContext):
         vertexShader="""
             #version 330
-            in vec2 in_vert;
+
+            in vec2 inVert;
+            in vec4 inColor;
+
+            out vec4 fColor;
 
             void main() {
-                gl_Position = vec4(in_vert.x, in_vert.y, 0.0, 1.0);
+                fColor = inColor;
+                gl_Position = vec4(inVert.xy, 0.0, 1.0);
             }
             """
 
         fragmentShader="""
             #version 330
 
-            out vec4 out_color;
+            in vec4 fColor;
 
             void main() {
-                out_color = vec4(1.0, 0.5, 0.2, 1.0);
+                gl_FragColor = vec4(fColor.rgb, 1.0);
             }
             """
         self.program = ctx.program(vertex_shader=vertexShader, fragment_shader=fragmentShader)
-        self.data = array.array('f', [
+
+        verts = array.array('f', [
                         -0.5, -0.5,
                         0.5, -0.5,
                         0.5, 0.5,
                         -0.5,  0.5,
         ])
-        self.buffer = ctx.buffer(data=self.data)
-        self.indexBuffer = ctx.buffer(data=array.array('I', [0,1,2,3]))
-        self.bufferDescription = BufferDescription(self.buffer, '2f', ['in_vert'] )
-        self.geometry = ctx.geometry([self.bufferDescription], index_buffer=self.indexBuffer, mode=ctx.LINES)
+        
+        self.verts = ctx.buffer(data=verts)
+        vertsDescription = BufferDescription(self.verts, '2f', ['inVert'] )
+
+        colors = array.array('B', [255, 0, 0, 255, 
+                                   255, 0, 0, 255,
+                                   255, 200, 0, 255,
+                                   255, 0, 0, 255])
+        self.colors = ctx.buffer(data=colors)
+        colorsDescription = BufferDescription(self.colors, '4f1', ['inColor'], normalized=('inColor'))
+
+        indices = array.array('I', [0,1,2,1])
+        self.indexBuffer = ctx.buffer(data=indices)
+
+        self.geometry = ctx.geometry([vertsDescription, colorsDescription], 
+                                     index_buffer=self.indexBuffer, 
+                                     mode=ctx.LINES)
         ctx.enable(pyglet.gl.GL_LINE_SMOOTH)
         self.time = Time()
 
     def draw(self):
-        self.time.startMeasure()
-        self.indexBuffer.write(data=array.array('I', [random.randint(0,3), random.randint(0,3), random.randint(0,3), random.randint(0,3)]))
-        self.time.stopMeasure()
+        # self.time.startMeasure()
+        # self.indexBuffer.write(data=array.array('I', [random.randint(0,3), random.randint(0,3), random.randint(0,3), random.randint(0,3)]))
         self.geometry.render(self.program)
-        print(self.time)
+        # print(self.time)
 
 
 class Runner(arcade.Window):
@@ -78,4 +96,4 @@ class Runner(arcade.Window):
         self.lineDraw.draw()
 
 
-Runner(800, 600, "SHaderTest").run()
+Runner(800, 600, "ShaderTest").run()
