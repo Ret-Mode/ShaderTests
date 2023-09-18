@@ -68,7 +68,7 @@ class LineDraw:
 
     def updateIndices(self, indices:List[int]):
         indicesInBytes = len(indices) * 4
-        if indicesInBytes > self.indices.size:
+        if indicesInBytes != self.indices.size:
             self.indices.orphan(size=indicesInBytes)
         self.indices.write(array.array('I', indices))
         self.geometry.num_vertices = len(indices)
