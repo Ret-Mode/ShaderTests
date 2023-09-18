@@ -79,6 +79,12 @@ class LineDraw:
             self.verts.orphan(size=vertsInBytes)
         self.verts.write(array.array('f', verts))
 
+    def updateColors(self, colors:List[int]):
+        colorsInBytes = len(colors)
+        if colorsInBytes > self.colors.size:
+            self.colors.orphan(size=colorsInBytes)
+        self.colors.write(array.array('B', colors))
+
     def update(self, verts:List[float], colors:List[int], indices:List[int]):
         vertsInBytes = len(verts) * 4
         colorsInBytes = len(colors)
@@ -92,8 +98,9 @@ class LineDraw:
             self.colors.orphan(size=colorsInBytes)
         self.colors.write(array.array('B', colors))
         
-        if indicesInBytes > self.indices.size:
+        if indicesInBytes != self.indices.size:
             self.indices.orphan(size=indicesInBytes)
+            self.geometry.num_vertices = len(indices)
         self.indices.write(array.array('I', indices))
 
     def draw(self):
