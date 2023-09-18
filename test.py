@@ -6,22 +6,7 @@ import pyglet.gl
 import random
 import time
 
-
-class Time:
-
-    def __init__(self):
-        self.time: float = 0.0
-        self.measures: int = 0
-
-    def startMeasure(self):
-        self.time -= time.time()
-
-    def stopMeasure(self):
-        self.time += time.time()
-        self.measures += 1
-
-    def __repr__(self):
-        return f'Cummulative:\t{self.time} Mean:\t{self.time/self.measures if self.measures != 0 else self.time}.'
+from typing import List
 
 
 class LineDraw:
@@ -63,26 +48,57 @@ class LineDraw:
         vertsDescription = BufferDescription(self.verts, '2f', ['inVert'] )
 
         colors = array.array('B', [255, 0, 0, 255, 
-                                   255, 0, 0, 255,
-                                   255, 200, 0, 255,
-                                   255, 0, 0, 255])
+                                   0, 255, 0, 255,
+                                   0, 0, 255, 255,
+                                   255, 255, 255, 255])
         self.colors = ctx.buffer(data=colors)
-        colorsDescription = BufferDescription(self.colors, '4f1', ['inColor'], normalized=('inColor'))
+        colorsDescription = BufferDescription(self.colors, '4f1', ['inColor'], normalized=['inColor'])
 
-        indices = array.array('I', [0,1,2,1])
-        self.indexBuffer = ctx.buffer(data=indices)
+        indices = array.array('I', [0,0])
+        self.indices = ctx.buffer(data=indices)
 
         self.geometry = ctx.geometry([vertsDescription, colorsDescription], 
-                                     index_buffer=self.indexBuffer, 
+                                     index_buffer=self.indices, 
                                      mode=ctx.LINES)
         ctx.enable(pyglet.gl.GL_LINE_SMOOTH)
-        self.time = Time()
+        ctx.disable(pyglet.gl.GL_DEPTH_TEST)
+        print(self.verts.size)
+        print(self.colors.size)
+        print(self.indices.size)
+
+    def updateIndices(self, indices:List[int]):
+        indicesInBytes = len(indices) * 4
+        if indicesInBytes > self.indices.size:
+            self.indices.orphan(size=indicesInBytes)
+        self.indices.write(array.array('I', indices))
+        self.geometry.num_vertices = len(indices)
+
+    def updateVerts(self, verts:List[float]):
+        vertsInBytes = len(verts) * 4
+        if vertsInBytes > self.verts.size:
+            self.verts.orphan(size=vertsInBytes)
+        self.verts.write(array.array('f', verts))
+
+    def update(self, verts:List[float], colors:List[int], indices:List[int]):
+        vertsInBytes = len(verts) * 4
+        colorsInBytes = len(colors)
+        indicesInBytes = len(indices) * 4
+
+        if vertsInBytes > self.verts.size:
+            self.verts.orphan(size=vertsInBytes)
+        self.verts.write(array.array('f', verts))
+        
+        if colorsInBytes > self.colors.size:
+            self.colors.orphan(size=colorsInBytes)
+        self.colors.write(array.array('B', colors))
+        
+        if indicesInBytes > self.indices.size:
+            self.indices.orphan(size=indicesInBytes)
+        self.indices.write(array.array('I', indices))
 
     def draw(self):
-        # self.time.startMeasure()
-        # self.indexBuffer.write(data=array.array('I', [random.randint(0,3), random.randint(0,3), random.randint(0,3), random.randint(0,3)]))
+        self.updateIndices([random.randint(0,3) for i in range(30)])
         self.geometry.render(self.program)
-        # print(self.time)
 
 
 class Runner(arcade.Window):
