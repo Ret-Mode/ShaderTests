@@ -4,9 +4,134 @@ from arcade.gl import BufferDescription
 from arcade import ArcadeContext
 import pyglet.gl
 import random
-import time
 
 from typing import List
+
+
+class RenderTarget:
+
+    def __init__(self, ctx:arcade.ArcadeContext, width:int, height:int):
+        vertexShader="""
+            #version 330
+
+            in vec2 inVert;
+
+            uniform WindowBlock
+            {
+                mat4 projection;
+                mat4 view;
+            } window;  
+
+            void main() {
+                gl_Position = vec4(inVert.x+gl_InstanceID*0.1, inVert.y-gl_InstanceID*0.1, 0.0, 1.0);
+            }
+            """
+
+        fragmentShader="""
+            #version 330
+
+            
+            layout(location = 0) out vec4 f1Color;
+            layout(location = 1) out vec4 f2Color;
+
+            void main() {
+                f1Color = vec4(1.0, 0.0, 0.0, 1.0);
+                f2Color = vec4(0.0, 1.0, 0.0, 1.0);
+            }
+            """
+        self.program = ctx.program(vertex_shader=vertexShader, fragment_shader=fragmentShader)
+    
+        self.fbo = ctx.framebuffer(
+            color_attachments=[ctx.texture(size=(width, height)), ctx.texture(size=(width, height))]
+        )
+        verts = array.array('f', [
+                        -1.0, -1.0, 1.0, 1.0
+        ])
+        self.verts = ctx.buffer(data=verts)
+        vertsDescription = BufferDescription(self.verts, '2f', ['inVert'] )
+        self.geometry = ctx.geometry([vertsDescription],
+                                     mode=ctx.LINES)
+
+    def resize(self, width, height):
+        self.fbo.color_attachments[0].resize((int(width), int(height)))
+        self.fbo.color_attachments[1].resize((int(width), int(height)))
+        self.fbo.resize()
+
+    def draw(self):
+        with self.fbo.activate() as fbo:
+            fbo.clear()
+            self.geometry.render(self.program, instances=10)
+
+
+class TextureDraw2:
+
+    def __init__(self, ctx:arcade.ArcadeContext):
+        vertexShader="""
+            #version 330
+
+            in vec2 inVert;
+            in vec2 inUV;
+
+            uniform WindowBlock
+            {
+                mat4 projection;
+                mat4 view;
+            } window;  
+
+            out vec2 fUV;
+
+            void main() {
+                fUV = inUV;
+                gl_Position = vec4(inVert.x+gl_InstanceID*0.1, inVert.y, 0.0, 1.0);
+            }
+            """
+
+        fragmentShader="""
+            #version 330
+
+            in vec2 fUV;
+
+            uniform sampler2D t1;
+            uniform sampler2D t2;
+
+            void main() {
+                gl_FragColor = mix(texture(t1, fUV), texture(t2, fUV), fUV.x);
+            }
+            """
+        self.program = ctx.program(vertex_shader=vertexShader, fragment_shader=fragmentShader)
+
+        verts = array.array('f', [
+                        -1.0, -1.0,
+                        1.0, -1.0,
+                        -1.0, 1.0,
+                        1.0, 1.0
+        ])
+        
+        self.verts = ctx.buffer(data=verts)
+        vertsDescription = BufferDescription(self.verts, '2f', ['inVert'] )
+
+        uvs = array.array('f', [0.0, 0.0,
+                                   1.0, 0.0,
+                                   0.0, 1.0,
+                                   1.0, 1.0])
+        self.uvs = ctx.buffer(data=uvs)
+        colorsDescription = BufferDescription(self.uvs, '2f', ['inUV'])
+
+        indices = array.array('I', [0,1,2,2,1,3])
+        self.indices = ctx.buffer(data=indices)
+
+        self.program.set_uniform_safe('t1', 0)
+        self.program.set_uniform_safe('t2', 1)
+
+        self.geometry = ctx.geometry([vertsDescription, colorsDescription], 
+                                     index_buffer=self.indices, 
+                                     mode=ctx.TRIANGLES)
+
+    def draw(self, renderTarget:RenderTarget):
+        renderTarget.fbo.color_attachments[0].use(0)
+        renderTarget.fbo.color_attachments[1].use(1)
+        self.geometry.render(self.program, instances=10)
+
 
 class GridDraw:
     
@@ -348,19 +473,37 @@ class Runner(arcade.Window):
 
     def __init__(self, width, height, title):
         super().__init__(width, height, title, resizable=True)
-        self.gridDraw = GridDraw(self.ctx)
-        self.vert = -0.3
-        self.color = 0.0
-        self.deltas = 0.001
+        #self.atlas = arcade.TextureAtlas()
+        #self.spriteList = arcade.SpriteList(atlas=self.atlas)
+        #self.spriteList.append(arcade.Sprite("./pinky.png"))
+        self.atlas = arcade.TextureAtlas((512,512), ctx = self.ctx)
+        texture = arcade.load_texture("./pinky.png")
+        self.spriteList = arcade.SpriteList(atlas=self.atlas)
+        self.spriteList.append(arcade.Sprite(texture = texture))
+        self.texture = self.spriteList.sprite_list[-1].texture
+        self.spriteList.sprite_list[-1].set_position(120, 20)
+        self.spriteList.append(arcade.Sprite(texture = texture))
+        self.spriteList.sprite_list[-1].set_position(230, 30)
+        self.spriteList.append(arcade.Sprite(texture = texture))
+        self.spriteList.sprite_list[-1].set_position(340, 40)
+        self.spriteList.append(arcade.Sprite("./wheel2.png"))
+        
 
+        self.rt = RenderTarget(self.ctx, width, height)
+        self.shader = TextureDraw2(self.ctx)
+
+    def on_resize(self, width: float, height: float):
+        self.rt.resize(width, height)
+        return super().on_resize(width, height)
+    
     def on_draw(self):
         self.clear()
-        self.gridDraw.updateVerts([self.vert+0.01, self.vert, self.vert-0.011, self.vert+0.3, self.vert-0.01, self.vert/2, self.vert/3, self.vert+0.009])
-        self.gridDraw.updateParams([self.deltas, self.deltas], [self.color-0.03, 1.0-self.color, self.color])
-        self.color += 0.005
-        
-        self.deltas += 0.0005
-        self.vert += 0.0001
-        self.gridDraw.draw()
+        self.rt.draw()
+        self.shader.draw(self.rt)
+        ## region = self.atlas.get_region_info(self.texture.name)
+        self.spriteList.draw()
+        #self.ctx.sprite_list_program_cull
+        #self.ctx.default_atlas
+
 
 Runner(800, 600, "ShaderTest").run()
