@@ -23,7 +23,7 @@ class RenderTarget:
             } window;  
 
             void main() {
-                gl_Position = vec4(inVert.x+gl_InstanceID*0.1, inVert.y-gl_InstanceID*0.1, 0.0, 1.0);
+                gl_Position = vec4(inVert.x+gl_InstanceID*0.1, inVert.y+gl_InstanceID*0.1, 0.0, 1.0);
             }
             """
 
@@ -45,7 +45,11 @@ class RenderTarget:
             color_attachments=[ctx.texture(size=(width, height)), ctx.texture(size=(width, height))]
         )
         verts = array.array('f', [
-                        -1.0, -1.0, 1.0, 1.0
+                        -1.0, -1.0, -0.98, -1.0,
+                        -1.0, -0.98, -0.98, -0.98,
+                        -1.0, -0.96, -0.98, -0.96,
+                        -1.0, -0.94, -0.98, -0.94,
+                        -1.0, -0.92, -0.98, -0.92,
         ])
         self.verts = ctx.buffer(data=verts)
         vertsDescription = BufferDescription(self.verts, '2f', ['inVert'] )
@@ -82,7 +86,7 @@ class TextureDraw2:
 
             void main() {
                 fUV = inUV;
-                gl_Position = vec4(inVert.x+gl_InstanceID*0.1, inVert.y, 0.0, 1.0);
+                gl_Position = vec4(inVert.x+gl_InstanceID*0.01, inVert.y+gl_InstanceID*0.01, 0.0, 1.0);
             }
             """
 
@@ -501,7 +505,7 @@ class Runner(arcade.Window):
         self.rt.draw()
         self.shader.draw(self.rt)
         ## region = self.atlas.get_region_info(self.texture.name)
-        self.spriteList.draw()
+        #self.spriteList.draw()
         #self.ctx.sprite_list_program_cull
         #self.ctx.default_atlas
 
